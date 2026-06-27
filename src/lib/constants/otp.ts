@@ -1,0 +1,18 @@
+/** OTP & SMS configuration constants */
+export const OTP_CONFIG = {
+  LENGTH: 6,
+  EXPIRY_MINUTES: 5,
+  MAX_ATTEMPTS: 5,
+  RESEND_COOLDOWN_SECONDS: 60,
+  RATE_LIMIT_MAX: 3,
+  RATE_LIMIT_WINDOW_MINUTES: 15,
+  ACTION_VERIFICATION_MINUTES: 15,
+} as const;
+
+export type OtpPurposeType =
+  | "REGISTRATION"
+  | "PHONE_VERIFICATION"
+  | "REWARD_REDEMPTION"
+  | "CHANGE_PHONE"
+  | "RESET_PASSWORD"
+  | "NEW_DEVICE";

@@ -1,0 +1,327 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleName {
+  ADMINISTRATOR
+  STAFF
+  STUDENT
+}
+
+enum TransactionType {
+  BOTTLE_SUBMISSION
+  REWARD_REDEMPTION
+  POINTS_ADJUSTMENT
+  ACHIEVEMENT_BONUS
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+  APPROVED
+}
+
+enum RewardCategory {
+  COFFEE_VOUCHER
+  MERCHANDISE
+  CASH
+  UNIVERSITY_POINTS
+  GIFT_CARD
+}
+
+enum RedemptionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FULFILLED
+}
+
+enum MachineStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+}
+
+enum LogLevel {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum RequirementType {
+  BOTTLE_COUNT
+  POINTS_EARNED
+  STREAK_DAYS
+}
+
+enum NotificationType {
+  BOTTLE_ACCEPTED
+  REWARD_ADDED
+  REWARD_CLAIMED
+  ACHIEVEMENT_UNLOCKED
+  MACHINE_OFFLINE
+  STORAGE_FULL
+  SENSOR_ERROR
+  GENERAL
+}
+
+enum OtpPurpose {
+  REGISTRATION
+  PHONE_VERIFICATION
+  REWARD_REDEMPTION
+  CHANGE_PHONE
+  RESET_PASSWORD
+  NEW_DEVICE
+}
+
+enum WebhookChannel {
+  SMS
+  EMAIL
+}
+
+enum WebhookEvent {
+  OTP_SEND
+  STUDENT_REGISTER
+  REWARD_REDEMPTION
+  PASSWORD_RESET
+  MANUAL_TEST
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  name      RoleName @unique
+  users     User[]
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String?        @unique
+  password      String
+  roleId        String
+  role          Role           @relation(fields: [roleId], references: [id])
+  student       Student?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  notifications Notification[]
+
+  @@index([roleId])
+}
+
+model Student {
+  id              String               @id @default(cuid())
+  userId          String               @unique
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studentId       String               @unique
+  firstName       String
+  lastName        String
+  course          String
+  year            Int
+  profilePicture  String?
+  rewardPoints    Int                  @default(0)
+  bottlesRecycled Int                  @default(0)
+  rank            Int?
+  nfcCardId       String?              @unique
+  phoneNumber     String               @unique
+  phoneVerified   Boolean              @default(false)
+  transactions    Transaction[]
+  redemptions     RewardRedemption[]
+  achievements    StudentAchievement[]
+  otpVerifications OtpVerification[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model OtpVerification {
+  id          String     @id @default(cuid())
+  studentId   String
+  student     Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  phoneNumber String
+  otpHash     String
+  purpose     OtpPurpose @default(REGISTRATION)
+  expiresAt   DateTime
+  verified    Boolean    @default(false)
+  attempts    Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([studentId, purpose])
+  @@index([expiresAt])
+  @@index([studentId, verified])
+}
+
+model Transaction {
+  id           String            @id @default(cuid())
+  studentId    String
+  student      Student           @relation(fields: [studentId], references: [id])
+  type         TransactionType
+  bottleCount  Int               @default(1)
+  pointsEarned Int               @default(0)
+  weightKg     Float?
+  status       TransactionStatus @default(COMPLETED)
+  machineId    String?
+  machine      Machine?          @relation(fields: [machineId], references: [id])
+  bottle       Bottle?
+  metadata     Json?
+  createdAt    DateTime          @default(now())
+
+  @@index([studentId])
+  @@index([createdAt])
+}
+
+model Bottle {
+  id            String       @id @default(cuid())
+  transactionId String?      @unique
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+  material      String       @default("PET")
+  weightGrams   Float
+  isValid       Boolean      @default(true)
+  sensorData    Json?
+  createdAt     DateTime     @default(now())
+}
+
+model Reward {
+  id          String         @id @default(cuid())
+  name        String
+  description String         @db.Text
+  category    RewardCategory
+  pointsCost  Int
+  stock       Int            @default(0)
+  imageUrl    String?
+  isActive    Boolean        @default(true)
+  redemptions RewardRedemption[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model RewardRedemption {
+  id         String           @id @default(cuid())
+  studentId  String
+  student    Student          @relation(fields: [studentId], references: [id])
+  rewardId   String
+  reward     Reward           @relation(fields: [rewardId], references: [id])
+  pointsUsed Int
+  status     RedemptionStatus @default(PENDING)
+  approvedBy String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([studentId])
+  @@index([status])
+}
+
+model Machine {
+  id              String        @id @default(cuid())
+  name            String
+  location        String
+  status          MachineStatus @default(ONLINE)
+  bottleCapacity  Int           @default(500)
+  bottlesStored   Int           @default(0)
+  motorStatus     String        @default("OK")
+  temperature     Float         @default(25.0)
+  sensorStatus    Json?
+  lastMaintenance DateTime?
+  logs            MachineLog[]
+  transactions    Transaction[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model MachineLog {
+  id        String   @id @default(cuid())
+  machineId String
+  machine   Machine  @relation(fields: [machineId], references: [id])
+  level     LogLevel @default(INFO)
+  message   String   @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([machineId])
+  @@index([createdAt])
+}
+
+model Achievement {
+  id                  String               @id @default(cuid())
+  name                String               @unique
+  description         String
+  icon                String
+  requirement         Int
+  requirementType     RequirementType
+  pointsBonus         Int                  @default(0)
+  studentAchievements StudentAchievement[]
+  createdAt           DateTime             @default(now())
+}
+
+model StudentAchievement {
+  id            String      @id @default(cuid())
+  studentId     String
+  student       Student     @relation(fields: [studentId], references: [id])
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  unlockedAt    DateTime    @default(now())
+
+  @@unique([studentId, achievementId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  title     String
+  message   String           @db.Text
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model Settings {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String @db.Text
+}
+
+model WebhookEndpoint {
+  id              String         @id @default(cuid())
+  name            String
+  channel         WebhookChannel
+  url             String         @db.Text
+  secret          String?
+  events          Json
+  description     String?        @db.Text
+  isActive        Boolean        @default(true)
+  isPrimary       Boolean        @default(false)
+  lastTriggeredAt DateTime?
+  lastStatus      String?
+  logs            WebhookLog[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([channel, isActive])
+}
+
+model WebhookLog {
+  id         String          @id @default(cuid())
+  webhookId  String
+  webhook    WebhookEndpoint @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event      WebhookEvent
+  status     String
+  statusCode Int?
+  response   String?         @db.Text
+  payload    Json?
+  createdAt  DateTime        @default(now())
+
+  @@index([webhookId])
+  @@index([createdAt])
+}

@@ -1,0 +1,156 @@
+{
+  "name": "FilCycle SMS via n8n",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "filcycle",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-filcycle-001",
+      "name": "FilCycle Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "filcycle-webhook-id-001"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "event",
+              "name": "event",
+              "value": "={{ ($json.body || $json).event || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "channel",
+              "name": "channel",
+              "value": "={{ ($json.body || $json).channel || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "studentId",
+              "name": "studentId",
+              "value": "={{ (($json.body || $json).data || {}).studentId || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "phone",
+              "name": "phoneNumber",
+              "value": "={{ (($json.body || $json).data || {}).phoneNumber || (($json.body || $json).data || {}).recipient || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "msg",
+              "name": "message",
+              "value": "={{ (($json.body || $json).data || {}).message || ('FilCycle: Your code is ' + ((($json.body || $json).data || {}).otp || '') + '. Valid for 5 minutes.') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-extract-001",
+      "name": "Extract Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [280, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://smsapiph.onrender.com/api/v1/send/sms",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "YOUR_SMS_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ recipient: $json.phoneNumber, message: $json.message }) }}",
+        "options": {}
+      },
+      "id": "http-sms-001",
+      "name": "Send SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [560, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'FilCycle webhook processed by n8n', event: $('Extract Fields').item.json.event, channel: $('Extract Fields').item.json.channel, studentId: $('Extract Fields').item.json.studentId, phoneNumber: $('Extract Fields').item.json.phoneNumber, processedAt: $now.toISO() }) }}",
+        "options": {}
+      },
+      "id": "respond-001",
+      "name": "Respond to FilCycle",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [840, 300]
+    }
+  ],
+  "connections": {
+    "FilCycle Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Fields": {
+      "main": [
+        [
+          {
+            "node": "Send SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS": {
+      "main": [
+        [
+          {
+            "node": "Respond to FilCycle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "FilCycle"
+    },
+    {
+      "name": "SMS"
+    }
+  ],
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
