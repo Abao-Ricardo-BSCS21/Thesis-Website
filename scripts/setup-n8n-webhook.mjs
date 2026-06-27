@@ -1,5 +1,5 @@
 /**
- * Ensures the default n8n webhook exists in FilCycle DB.
+ * Ensures the default n8n email webhook exists in FilCycle DB.
  * Run: node scripts/setup-n8n-webhook.mjs
  */
 import { PrismaClient } from "@prisma/client";
@@ -13,7 +13,7 @@ if (existing) {
   if (!existing.isPrimary) {
     await prisma.webhookEndpoint.update({
       where: { id: existing.id },
-      data: { isPrimary: true },
+      data: { isPrimary: true, channel: "EMAIL" },
     });
     console.log("Updated webhook to Primary:", existing.name);
   } else {
@@ -22,11 +22,11 @@ if (existing) {
 } else {
   const created = await prisma.webhookEndpoint.create({
     data: {
-      name: "FilCycle n8n SMS",
-      channel: "SMS",
+      name: "FilCycle n8n Email",
+      channel: "EMAIL",
       url: URL,
       events: ["OTP_SEND", "MANUAL_TEST", "STUDENT_REGISTER"],
-      description: "n8n workflow — import n8n/filcycle-sms-email-workflow.json and activate",
+      description: "n8n workflow — import n8n/filcycle-email-workflow.json and activate",
       isActive: true,
       isPrimary: true,
     },
@@ -34,14 +34,13 @@ if (existing) {
   console.log("Created webhook:", created.name, "→", created.url);
 }
 
-// Quick connectivity check
 try {
   const payload = {
     event: "MANUAL_TEST",
-    channel: "SMS",
+    channel: "EMAIL",
     timestamp: new Date().toISOString(),
     source: "filcycle",
-    data: { test: true, phoneNumber: "+639171234567", message: "Setup check" },
+    data: { test: true, email: "admin@filamer.edu", message: "Setup check" },
   };
   const res = await fetch(URL, {
     method: "POST",
@@ -55,7 +54,7 @@ try {
   } else if (text.includes('"event"') && text.includes("MANUAL_TEST")) {
     console.log("\n✅ n8n workflow is active and responding correctly.");
   } else if (res.ok) {
-    console.log("\n⚠️  n8n returned 200 but unexpected body. Re-import n8n/filcycle-sms-email-workflow.json");
+    console.log("\n⚠️  n8n returned 200 but unexpected body. Re-import n8n/filcycle-email-workflow.json");
   }
 } catch (e) {
   console.log("\n❌ Cannot reach n8n at", URL);

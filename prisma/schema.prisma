@@ -74,15 +74,13 @@ enum NotificationType {
 
 enum OtpPurpose {
   REGISTRATION
-  PHONE_VERIFICATION
+  EMAIL_VERIFICATION
   REWARD_REDEMPTION
-  CHANGE_PHONE
   RESET_PASSWORD
   NEW_DEVICE
 }
 
 enum WebhookChannel {
-  SMS
   EMAIL
 }
 
@@ -130,8 +128,7 @@ model Student {
   bottlesRecycled Int                  @default(0)
   rank            Int?
   nfcCardId       String?              @unique
-  phoneNumber     String               @unique
-  phoneVerified   Boolean              @default(false)
+  emailVerified   Boolean              @default(false)
   transactions    Transaction[]
   redemptions     RewardRedemption[]
   achievements    StudentAchievement[]
@@ -144,7 +141,7 @@ model OtpVerification {
   id          String     @id @default(cuid())
   studentId   String
   student     Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  phoneNumber String
+  email       String
   otpHash     String
   purpose     OtpPurpose @default(REGISTRATION)
   expiresAt   DateTime

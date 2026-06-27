@@ -87,10 +87,6 @@ export class WebhookDispatcherService {
       ...overrides,
     };
 
-    if (webhook.channel === "SMS") {
-      data.phoneNumber = overrides?.phoneNumber ?? "+639171234567";
-      data.recipient = data.phoneNumber;
-    }
     if (webhook.channel === "EMAIL") {
       data.email = overrides?.email ?? "test@filamer.edu";
       data.subject = "FilCycle Webhook Test";
@@ -107,23 +103,23 @@ export class WebhookDispatcherService {
     );
   }
 
-  /** Deliver SMS via n8n (primary webhook, or first active match). Awaited — used for OTP. */
-  async deliverSms(
+  /** Deliver OTP email via n8n (primary webhook, or first active match). Awaited — used for OTP. */
+  async deliverEmail(
     event: WebhookEvent,
     data: Record<string, unknown>
   ): Promise<DispatchResult> {
-    const primary = await this.repo.findPrimary("SMS", event);
+    const primary = await this.repo.findPrimary("EMAIL", event);
     const webhooks = primary
       ? [primary]
-      : await this.repo.findActiveForEvent("SMS", event);
+      : await this.repo.findActiveForEvent("EMAIL", event);
 
     if (webhooks.length === 0) {
       return {
         webhookId: "",
-        name: "SMS",
+        name: "Email",
         success: false,
         error:
-          "No active SMS webhook configured. Add your n8n Production URL in Admin → Webhooks.",
+          "No active email webhook configured. Add your n8n Production URL in Admin → Webhooks (OTP_SEND event, mark Primary).",
       };
     }
 
@@ -132,7 +128,7 @@ export class WebhookDispatcherService {
       hook.id,
       hook.url,
       hook.secret,
-      "SMS",
+      "EMAIL",
       event,
       data,
       hook.name
@@ -144,7 +140,7 @@ export class WebhookDispatcherService {
         success: false,
         error:
           result.warning ||
-          "n8n responded but did not process the SMS workflow. Check n8n Executions.",
+          "n8n responded but did not process the email workflow. Check n8n Executions.",
       };
     }
 

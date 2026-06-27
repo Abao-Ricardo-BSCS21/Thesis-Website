@@ -67,7 +67,7 @@ export function useOtp({
 
   const verify = useCallback(async () => {
     if (otp.length !== OTP_CONFIG.LENGTH) {
-      setError("Please enter the complete 6-digit code");
+      setError(`Please enter the complete ${OTP_CONFIG.LENGTH}-digit code`);
       return false;
     }
 

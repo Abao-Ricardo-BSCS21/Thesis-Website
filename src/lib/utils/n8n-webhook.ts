@@ -55,7 +55,10 @@ export function analyzeN8nResponse(statusCode: number, responseText: string): N8
       if (!hasParsedFields) {
         result.workflowProcessed = false;
         result.warning =
-          "n8n returned HTTP 200 but did not parse the payload (empty event/channel). Re-import the updated workflow from n8n/filcycle-sms-email-workflow.json — the Parse Payload node must read ($json.body || $json).";
+          "n8n returned HTTP 200 but did not parse the payload (empty event/channel). Re-import n8n/filcycle-email-workflow.json.";
+      } else if (json.success === false && json.message) {
+        result.workflowProcessed = false;
+        result.warning = json.message;
       }
     }
   } catch {
@@ -65,8 +68,8 @@ export function analyzeN8nResponse(statusCode: number, responseText: string): N8
       result.workflowProcessed = false;
       result.warning =
         trimmed === "json"
-          ? "n8n returned the literal text \"json\" — the workflow response is misconfigured. Re-import n8n/filcycle-sms-email-workflow.json and activate the workflow."
-          : "n8n returned HTTP 200 with an empty body. Re-import n8n/filcycle-sms-email-workflow.json, activate the workflow, and confirm the URL in Admin → Webhooks.";
+          ? "n8n returned the literal text \"json\" — the workflow response is misconfigured. Re-import n8n/filcycle-email-workflow.json and activate the workflow."
+          : "n8n returned HTTP 200 with an empty body — Respond node did not run. Re-import n8n/filcycle-email-workflow.json and activate the workflow.";
     }
   }
 

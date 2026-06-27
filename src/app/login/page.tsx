@@ -97,14 +97,14 @@ export default function LoginPage() {
           const params = new URLSearchParams({
             studentId: checkData.data.studentId,
             purpose: checkData.data.purpose,
-            maskedPhone: checkData.data.maskedPhone,
+            maskedEmail: checkData.data.maskedEmail,
           });
           if (checkData.data.expiresAt) params.set("expiresAt", checkData.data.expiresAt);
           if (checkData.data.resendAvailableAt) {
             params.set("resendAvailableAt", checkData.data.resendAvailableAt);
           }
 
-          toast.info("Please verify your phone number");
+          toast.info("Please verify your email address");
           router.push(`/verify-otp?${params.toString()}`);
           return;
         }

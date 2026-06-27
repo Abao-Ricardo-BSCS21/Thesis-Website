@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { RoleName } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { maskPhoneNumber, normalizePhoneNumber, parseFullName } from "@/lib/utils/phone";
+import { parseFullName } from "@/lib/utils/name";
 import { studentRepository } from "@/repositories/auth.repository";
 import { otpService, OtpServiceError } from "@/services/otp/otp.service";
 import { webhookDispatcher } from "@/services/webhook/webhook-dispatcher.service";
@@ -22,24 +22,18 @@ export class StudentAuthService {
   private studentRepo = studentRepository;
 
   async register(input: StudentRegistrationInput) {
-    const phoneNumber = normalizePhoneNumber(input.phoneNumber);
+    const email = input.email.trim().toLowerCase();
     const { firstName, lastName } = parseFullName(input.fullName);
 
     if (await this.studentRepo.existsByStudentId(input.studentId)) {
       throw new StudentAuthError("Student ID already registered", "DUPLICATE_STUDENT_ID", 409);
     }
 
-    if (await this.studentRepo.existsByPhone(phoneNumber)) {
-      throw new StudentAuthError("Phone number already registered", "DUPLICATE_PHONE", 409);
-    }
-
-    if (input.email) {
-      const emailTaken = await prisma.user.findUnique({
-        where: { email: input.email },
-      });
-      if (emailTaken) {
-        throw new StudentAuthError("Email already in use", "DUPLICATE_EMAIL", 409);
-      }
+    const emailTaken = await prisma.user.findUnique({
+      where: { email },
+    });
+    if (emailTaken) {
+      throw new StudentAuthError("Email already in use", "DUPLICATE_EMAIL", 409);
     }
 
     const studentRole = await prisma.role.findUnique({
@@ -51,14 +45,13 @@ export class StudentAuthService {
 
     const passwordHash = await bcrypt.hash(input.password, 12);
 
-    const user = await this.studentRepo.createWithUser({
+    await this.studentRepo.createWithUser({
       studentId: input.studentId,
       firstName,
       lastName,
       course: input.course,
       year: input.year,
-      phoneNumber,
-      email: input.email || null,
+      email,
       passwordHash,
       roleId: studentRole.id,
     });
@@ -73,17 +66,16 @@ export class StudentAuthService {
       studentId: input.studentId,
       firstName,
       lastName,
-      email: input.email || null,
-      phoneNumber,
+      email,
       course: input.course,
       year: input.year,
       subject: "Welcome to FilCycle",
-      message: `Welcome ${firstName}! Your FilCycle account has been created. Please verify your phone number.`,
+      message: `Welcome ${firstName}! Your FilCycle account has been created. Please verify your email address.`,
     });
 
     return {
       studentId: input.studentId,
-      message: "Registration successful. Please verify your phone number.",
+      message: "Registration successful. Please verify your email.",
       ...otpResult,
     };
   }
@@ -109,8 +101,8 @@ export class StudentAuthService {
       );
     }
 
-    if (!student.phoneVerified || !student.user.isActive) {
-      const purpose = "PHONE_VERIFICATION" as const;
+    if (!student.emailVerified || !student.user.isActive) {
+      const purpose = "EMAIL_VERIFICATION" as const;
       let otpMeta: Awaited<ReturnType<typeof otpService.createAndSendOtp>> | null = null;
 
       try {
@@ -121,12 +113,14 @@ export class StudentAuthService {
         }
       }
 
+      const email = student.user.email ?? "";
+
       return {
         authenticated: false,
         requiresOtp: true,
         studentId: student.studentId,
         purpose,
-        maskedPhone: otpMeta?.maskedPhone ?? maskPhoneNumber(student.phoneNumber),
+        maskedEmail: otpMeta?.maskedEmail ?? (email ? `${email[0]}***@${email.split("@")[1] ?? "****"}` : ""),
         expiresAt: otpMeta?.expiresAt.toISOString(),
         resendAvailableAt: otpMeta?.resendAvailableAt.toISOString(),
       };
@@ -139,14 +133,17 @@ export class StudentAuthService {
     };
   }
 
-  async requestActionOtp(studentDbId: string, purpose: "REWARD_REDEMPTION" | "CHANGE_PHONE" | "RESET_PASSWORD" | "NEW_DEVICE") {
+  async requestActionOtp(
+    studentDbId: string,
+    purpose: "REWARD_REDEMPTION" | "RESET_PASSWORD" | "NEW_DEVICE"
+  ) {
     const student = await this.studentRepo.findById(studentDbId);
     if (!student) {
       throw new StudentAuthError("Student not found", "STUDENT_NOT_FOUND", 404);
     }
 
-    if (!student.phoneVerified) {
-      throw new StudentAuthError("Phone number not verified", "PHONE_NOT_VERIFIED", 403);
+    if (!student.emailVerified) {
+      throw new StudentAuthError("Email not verified", "EMAIL_NOT_VERIFIED", 403);
     }
 
     try {
@@ -160,14 +157,14 @@ export class StudentAuthService {
   async verifyActionOtp(
     studentId: string,
     otp: string,
-    purpose: "REWARD_REDEMPTION" | "CHANGE_PHONE" | "RESET_PASSWORD" | "NEW_DEVICE"
+    purpose: "REWARD_REDEMPTION" | "RESET_PASSWORD" | "NEW_DEVICE"
   ) {
     return otpService.verifyOtp(studentId, otp, purpose);
   }
 
   async hasActionVerification(
     studentDbId: string,
-    purpose: "REWARD_REDEMPTION" | "CHANGE_PHONE" | "RESET_PASSWORD" | "NEW_DEVICE"
+    purpose: "REWARD_REDEMPTION" | "RESET_PASSWORD" | "NEW_DEVICE"
   ) {
     return otpService.hasVerifiedAction(studentDbId, purpose);
   }

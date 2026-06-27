@@ -21,7 +21,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   try {
     const result = await webhookDispatcher.testWebhook(id, {
-      phoneNumber: parsed.data.recipient,
       email: parsed.data.email || undefined,
       message: parsed.data.message,
     });

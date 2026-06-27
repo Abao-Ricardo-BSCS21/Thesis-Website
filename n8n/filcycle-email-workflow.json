@@ -1,0 +1,125 @@
+{
+  "name": "FilCycle Email OTP (n8n)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "filcycle",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "FilCycle Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "filcycle"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "event",
+              "name": "event",
+              "value": "={{ (($json.body || $json).event || '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "channel",
+              "name": "channel",
+              "value": "={{ (($json.body || $json).channel || 'EMAIL').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "email",
+              "name": "email",
+              "value": "={{ (($json.body || $json).data || {}).email || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "otp",
+              "name": "otp",
+              "value": "={{ (($json.body || $json).data || {}).otp || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "subject",
+              "name": "subject",
+              "value": "={{ (($json.body || $json).data || {}).subject || 'FilCycle Verification Code' }}",
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "value": "={{ (($json.body || $json).data || {}).message || (($json.body || $json).data || {}).emailBody || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "studentId",
+              "name": "studentId",
+              "value": "={{ (($json.body || $json).data || {}).studentId || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-node",
+      "name": "Extract Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'FilCycle webhook processed by n8n', event: $json.event, channel: $json.channel, studentId: $json.studentId, email: $json.email, processedAt: $now.toISO() }) }}",
+        "options": {}
+      },
+      "id": "respond-node",
+      "name": "Respond to FilCycle",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@filamer.edu",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.message }}",
+        "options": {}
+      },
+      "id": "send-email-node",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [680, 400],
+      "credentials": {
+        "smtp": {
+          "id": "CONFIGURE_SMTP_IN_N8N",
+          "name": "FilCycle SMTP"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "FilCycle Webhook": {
+      "main": [[{ "node": "Extract Fields", "type": "main", "index": 0 }]]
+    },
+    "Extract Fields": {
+      "main": [
+        [
+          { "node": "Respond to FilCycle", "type": "main", "index": 0 },
+          { "node": "Send Email", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" },
+  "meta": { "instanceId": "filcycle-email-otp" },
+  "tags": [{ "name": "Email" }]
+}

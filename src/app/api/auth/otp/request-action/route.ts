@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     const result = await studentAuthService.requestActionOtp(student.id, parsed.data.purpose);
     return apiResponse({
       message: "OTP sent for verification.",
-      maskedPhone: result.maskedPhone,
+      maskedEmail: result.maskedEmail,
       expiresAt: result.expiresAt.toISOString(),
       resendAvailableAt: result.resendAvailableAt.toISOString(),
     });

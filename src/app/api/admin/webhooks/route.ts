@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const channel = searchParams.get("channel") as WebhookChannel | null;
 
   const webhooks = await webhookRepository.findAll(
-    channel && ["SMS", "EMAIL"].includes(channel) ? channel : undefined
+    channel && channel === "EMAIL" ? channel : undefined
   );
 
   return apiResponse(webhooks);

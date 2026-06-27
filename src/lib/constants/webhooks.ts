@@ -9,13 +9,11 @@ export const WEBHOOK_EVENT_LABELS: Record<WebhookEvent, string> = {
 };
 
 export const WEBHOOK_CHANNEL_LABELS: Record<WebhookChannel, string> = {
-  SMS: "SMS",
   EMAIL: "Email",
 };
 
 /** Events available per channel for n8n workflows */
 export const WEBHOOK_EVENTS_BY_CHANNEL: Record<WebhookChannel, WebhookEvent[]> = {
-  SMS: ["OTP_SEND", "STUDENT_REGISTER", "REWARD_REDEMPTION", "PASSWORD_RESET", "MANUAL_TEST"],
   EMAIL: ["OTP_SEND", "STUDENT_REGISTER", "REWARD_REDEMPTION", "PASSWORD_RESET", "MANUAL_TEST"],
 };
 

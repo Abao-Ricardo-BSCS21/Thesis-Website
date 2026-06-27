@@ -12,13 +12,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { OtpInput } from "@/components/auth/otp-input";
 import { useOtp } from "@/hooks/use-otp";
+import { OTP_CONFIG } from "@/lib/constants/otp";
 import { toast } from "sonner";
 
 interface ActionOtpDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   studentId: string;
-  purpose: "REWARD_REDEMPTION" | "CHANGE_PHONE" | "RESET_PASSWORD" | "NEW_DEVICE";
+  purpose: "REWARD_REDEMPTION" | "RESET_PASSWORD" | "NEW_DEVICE";
   onVerified: () => void;
 }
 
@@ -30,7 +31,7 @@ export function ActionOtpDialog({
   onVerified,
 }: ActionOtpDialogProps) {
   const [requested, setRequested] = useState(false);
-  const [maskedPhone, setMaskedPhone] = useState("");
+  const [maskedEmail, setMaskedEmail] = useState("");
   const [requesting, setRequesting] = useState(false);
 
   const {
@@ -69,9 +70,9 @@ export function ActionOtpDialog({
         toast.error(data.error || "Failed to send OTP");
         return;
       }
-      setMaskedPhone(data.data.maskedPhone);
+      setMaskedEmail(data.data.maskedEmail);
       setRequested(true);
-      toast.success("OTP sent to your phone");
+      toast.success("Verification code sent to your email");
     } catch {
       toast.error("Network error");
     } finally {
@@ -99,9 +100,9 @@ export function ActionOtpDialog({
           </div>
           <DialogTitle className="text-center">Security Verification</DialogTitle>
           <DialogDescription className="text-center">
-            {maskedPhone
-              ? `Enter the OTP sent to ${maskedPhone}`
-              : "Confirm this action with a one-time code"}
+            {maskedEmail
+              ? `Enter the code sent to ${maskedEmail}`
+              : "Confirm this action with a one-time code from your email"}
           </DialogDescription>
         </DialogHeader>
 
@@ -111,7 +112,13 @@ export function ActionOtpDialog({
           </div>
         ) : requested ? (
           <div className="space-y-4">
-            <OtpInput value={otp} onChange={setOtp} disabled={loading || isExpired} error={!!error} />
+            <OtpInput
+              value={otp}
+              onChange={setOtp}
+              length={OTP_CONFIG.LENGTH}
+              disabled={loading || isExpired}
+              error={!!error}
+            />
             {error && <p className="text-center text-sm text-destructive">{error}</p>}
             <p className="text-center text-sm text-muted-foreground">
               Expires in{" "}
@@ -119,7 +126,7 @@ export function ActionOtpDialog({
             </p>
             <Button
               className="w-full"
-              disabled={loading || otp.length !== 6 || isExpired}
+              disabled={loading || otp.length !== OTP_CONFIG.LENGTH || isExpired}
               onClick={() => verify()}
             >
               {loading ? <Loader2 className="animate-spin" size={18} /> : "Verify & Continue"}
@@ -130,14 +137,14 @@ export function ActionOtpDialog({
               disabled={!canResend}
               onClick={async () => {
                 const ok = await resend();
-                if (ok) toast.success("New OTP sent");
+                if (ok) toast.success("New code sent");
               }}
             >
               {resending
                 ? "Sending..."
                 : resendCountdown > 0
                   ? `Resend in ${resendCountdown}s`
-                  : "Resend OTP"}
+                  : "Resend Code"}
             </Button>
           </div>
         ) : null}

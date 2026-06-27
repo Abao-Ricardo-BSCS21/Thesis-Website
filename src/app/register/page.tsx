@@ -31,7 +31,6 @@ export default function RegisterPage() {
     fullName: "",
     course: COURSES[0],
     year: "1",
-    phoneNumber: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -63,12 +62,12 @@ export default function RegisterPage() {
         JSON.stringify({ studentId: form.studentId, password: form.password })
       );
 
-      toast.success("Registration successful! Verify your phone number.");
+      toast.success("Registration successful! Check your email for the verification code.");
 
       const params = new URLSearchParams({
         studentId: form.studentId,
         purpose: "REGISTRATION",
-        maskedPhone: data.data.maskedPhone,
+        maskedEmail: data.data.maskedEmail,
         expiresAt: data.data.expiresAt,
         resendAvailableAt: data.data.resendAvailableAt,
       });
@@ -179,23 +178,8 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="phoneNumber" className="text-slate-300">
-                    Phone Number
-                  </Label>
-                  <Input
-                    id="phoneNumber"
-                    type="tel"
-                    placeholder="09171234567"
-                    value={form.phoneNumber}
-                    onChange={(e) => update("phoneNumber", e.target.value)}
-                    className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="email" className="text-slate-300">
-                    Email <span className="text-slate-500">(optional)</span>
+                    Email
                   </Label>
                   <Input
                     id="email"
@@ -204,6 +188,7 @@ export default function RegisterPage() {
                     value={form.email}
                     onChange={(e) => update("email", e.target.value)}
                     className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                    required
                   />
                 </div>
 
@@ -256,7 +241,7 @@ export default function RegisterPage() {
                     Creating account...
                   </>
                 ) : (
-                  "Register & Verify Phone"
+                  "Register & Verify Email"
                 )}
               </Button>
             </form>

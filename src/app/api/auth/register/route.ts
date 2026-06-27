@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       {
         studentId: result.studentId,
         message: result.message,
-        maskedPhone: result.maskedPhone,
+        maskedEmail: result.maskedEmail,
         expiresAt: result.expiresAt.toISOString(),
         resendAvailableAt: result.resendAvailableAt.toISOString(),
       },

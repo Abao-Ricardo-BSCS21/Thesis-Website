@@ -1,11 +1,6 @@
 import { z } from "zod";
-import { isValidPhoneNumber } from "@/lib/utils/phone";
+import { OTP_CONFIG } from "@/lib/constants/otp";
 import { STUDENT_ID_PATTERN } from "@/lib/utils/student-id";
-
-const phoneSchema = z
-  .string()
-  .min(10, "Phone number is required")
-  .refine(isValidPhoneNumber, "Invalid Philippine phone number (e.g. 09171234567)");
 
 export const studentRegistrationSchema = z
   .object({
@@ -16,8 +11,7 @@ export const studentRegistrationSchema = z
     fullName: z.string().min(2, "Full name is required").max(100),
     course: z.string().min(1, "Course is required"),
     year: z.coerce.number().min(1).max(6),
-    phoneNumber: phoneSchema,
-    email: z.string().email("Invalid email").optional().or(z.literal("")),
+    email: z.string().email("Valid email is required"),
     password: z
       .string()
       .min(6, "Password must be at least 6 characters")
@@ -38,14 +32,16 @@ export const otpVerifySchema = z.object({
   studentId: z.string().min(1),
   otp: z
     .string()
-    .length(6, "OTP must be 6 digits")
-    .regex(/^\d{6}$/, "OTP must contain only digits"),
+    .length(OTP_CONFIG.LENGTH, `OTP must be ${OTP_CONFIG.LENGTH} digits`)
+    .regex(
+      new RegExp(`^\\d{${OTP_CONFIG.LENGTH}}$`),
+      `OTP must contain only ${OTP_CONFIG.LENGTH} digits`
+    ),
   purpose: z
     .enum([
       "REGISTRATION",
-      "PHONE_VERIFICATION",
+      "EMAIL_VERIFICATION",
       "REWARD_REDEMPTION",
-      "CHANGE_PHONE",
       "RESET_PASSWORD",
       "NEW_DEVICE",
     ])
@@ -57,9 +53,8 @@ export const otpResendSchema = z.object({
   purpose: z
     .enum([
       "REGISTRATION",
-      "PHONE_VERIFICATION",
+      "EMAIL_VERIFICATION",
       "REWARD_REDEMPTION",
-      "CHANGE_PHONE",
       "RESET_PASSWORD",
       "NEW_DEVICE",
     ])
@@ -67,12 +62,7 @@ export const otpResendSchema = z.object({
 });
 
 export const otpActionRequestSchema = z.object({
-  purpose: z.enum([
-    "REWARD_REDEMPTION",
-    "CHANGE_PHONE",
-    "RESET_PASSWORD",
-    "NEW_DEVICE",
-  ]),
+  purpose: z.enum(["REWARD_REDEMPTION", "RESET_PASSWORD", "NEW_DEVICE"]),
 });
 
 export type StudentRegistrationInput = z.infer<typeof studentRegistrationSchema>;

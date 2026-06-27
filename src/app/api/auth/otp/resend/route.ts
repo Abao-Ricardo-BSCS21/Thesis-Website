@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const result = await otpService.resendOtp(parsed.data.studentId, parsed.data.purpose);
     return apiResponse({
       message: "A new OTP has been sent.",
-      maskedPhone: result.maskedPhone,
+      maskedEmail: result.maskedEmail,
       expiresAt: result.expiresAt.toISOString(),
       resendAvailableAt: result.resendAvailableAt.toISOString(),
     });

@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { OtpPurpose, Prisma } from "@prisma/client";
+import { OtpPurpose } from "@prisma/client";
 import type { OtpPurposeType } from "@/lib/constants/otp";
 
 export class OtpRepository {
@@ -12,7 +12,7 @@ export class OtpRepository {
 
   async create(data: {
     studentId: string;
-    phoneNumber: string;
+    email: string;
     otpHash: string;
     purpose: OtpPurpose;
     expiresAt: Date;
@@ -107,13 +107,6 @@ export class StudentRepository {
     });
   }
 
-  async findByPhone(phoneNumber: string) {
-    return prisma.student.findUnique({
-      where: { phoneNumber },
-      include: { user: true },
-    });
-  }
-
   async findById(id: string) {
     return prisma.student.findUnique({
       where: { id },
@@ -127,15 +120,14 @@ export class StudentRepository {
     lastName: string;
     course: string;
     year: number;
-    phoneNumber: string;
-    email?: string | null;
+    email: string;
     passwordHash: string;
     roleId: string;
   }) {
     return prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
-          email: data.email || null,
+          email: data.email,
           password: data.passwordHash,
           roleId: data.roleId,
           isActive: false,
@@ -146,8 +138,7 @@ export class StudentRepository {
               lastName: data.lastName,
               course: data.course,
               year: data.year,
-              phoneNumber: data.phoneNumber,
-              phoneVerified: false,
+              emailVerified: false,
             },
           },
         },
@@ -157,11 +148,11 @@ export class StudentRepository {
     });
   }
 
-  async activatePhoneVerification(studentId: string) {
+  async activateEmailVerification(studentId: string) {
     return prisma.$transaction(async (tx) => {
       const student = await tx.student.update({
         where: { id: studentId },
-        data: { phoneVerified: true },
+        data: { emailVerified: true },
         include: { user: true },
       });
       await tx.user.update({
@@ -174,11 +165,6 @@ export class StudentRepository {
 
   async existsByStudentId(studentId: string) {
     const count = await prisma.student.count({ where: { studentId } });
-    return count > 0;
-  }
-
-  async existsByPhone(phoneNumber: string) {
-    const count = await prisma.student.count({ where: { phoneNumber } });
     return count > 0;
   }
 }

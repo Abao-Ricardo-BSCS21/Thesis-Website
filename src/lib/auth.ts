@@ -42,8 +42,8 @@ export const authOptions: NextAuthOptions = {
             throw new Error("Invalid Student ID or Password.");
           }
 
-          if (!student.phoneVerified || !student.user.isActive) {
-            throw new Error("Please verify your phone number to continue.");
+          if (!student.emailVerified || !student.user.isActive) {
+            throw new Error("Please verify your email to continue.");
           }
 
           return {

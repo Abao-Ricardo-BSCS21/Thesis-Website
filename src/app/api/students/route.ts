@@ -4,6 +4,7 @@ import { apiError, apiResponse, parseBody, rateLimit } from "@/lib/api-utils";
 import { requireAuth } from "@/lib/permissions";
 import prisma from "@/lib/prisma";
 import { studentCreateSchema } from "@/lib/validations";
+import { studentRepository } from "@/repositories/auth.repository";
 import bcrypt from "bcryptjs";
 
 export async function GET(request: NextRequest) {
@@ -55,10 +56,19 @@ export async function POST(request: NextRequest) {
   const parsed = studentCreateSchema.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.issues[0].message);
 
+  if (!parsed.data.email) {
+    return apiError("Email is required for student accounts");
+  }
+
   const existing = await prisma.student.findUnique({
     where: { studentId: parsed.data.studentId },
   });
   if (existing) return apiError("Student ID already exists");
+
+  const emailTaken = await prisma.user.findUnique({
+    where: { email: parsed.data.email },
+  });
+  if (emailTaken) return apiError("Email already in use");
 
   const studentRole = await prisma.role.findUnique({
     where: { name: RoleName.STUDENT },
@@ -67,25 +77,30 @@ export async function POST(request: NextRequest) {
 
   const hashedPassword = await bcrypt.hash(parsed.data.password, 12);
 
-  const student = await prisma.student.create({
-    data: {
-      studentId: parsed.data.studentId,
-      firstName: parsed.data.firstName,
-      lastName: parsed.data.lastName,
-      course: parsed.data.course,
-      year: parsed.data.year,
-      phoneNumber: `+6390000${parsed.data.studentId.replace(/\D/g, "").slice(-5)}`,
-      phoneVerified: true,
-      user: {
-        create: {
-          email: parsed.data.email,
-          password: hashedPassword,
-          roleId: studentRole.id,
-        },
-      },
-    },
+  const created = await studentRepository.createWithUser({
+    studentId: parsed.data.studentId,
+    firstName: parsed.data.firstName,
+    lastName: parsed.data.lastName,
+    course: parsed.data.course,
+    year: parsed.data.year,
+    email: parsed.data.email,
+    passwordHash: hashedPassword,
+    roleId: studentRole.id,
+  });
+
+  const student = await prisma.student.findUnique({
+    where: { userId: created.id },
+  });
+  if (!student) {
+    return apiError("Failed to create student profile", 500);
+  }
+
+  await studentRepository.activateEmailVerification(student.id);
+
+  const result = await prisma.student.findUnique({
+    where: { id: student.id },
     include: { user: true },
   });
 
-  return apiResponse(student, 201);
+  return apiResponse(result, 201);
 }

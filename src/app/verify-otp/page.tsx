@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { OtpInput } from "@/components/auth/otp-input";
 import { useOtp } from "@/hooks/use-otp";
 import type { OtpPurposeType } from "@/lib/constants/otp";
+import { OTP_CONFIG } from "@/lib/constants/otp";
 import { toast } from "sonner";
 
 import { AUTH_PENDING_KEY } from "@/lib/constants/auth";
@@ -22,14 +23,14 @@ function VerifyOtpContent() {
 
   const studentId = searchParams.get("studentId") || "";
   const purpose = (searchParams.get("purpose") || "REGISTRATION") as OtpPurposeType;
-  const maskedPhone = searchParams.get("maskedPhone") || "";
+  const maskedEmail = searchParams.get("maskedEmail") || "";
   const expiresAt = searchParams.get("expiresAt");
   const resendAvailableAt = searchParams.get("resendAvailableAt");
 
   const completeSignIn = useCallback(async () => {
     const pending = sessionStorage.getItem(AUTH_PENDING_KEY);
     if (!pending) {
-      toast.success("Phone verified! Please sign in.");
+      toast.success("Email verified! Please sign in.");
       router.push("/login");
       return;
     }
@@ -63,7 +64,11 @@ function VerifyOtpContent() {
   }, [router]);
 
   const handleVerified = useCallback(() => {
-    if (purpose === "REWARD_REDEMPTION" || purpose === "CHANGE_PHONE" || purpose === "RESET_PASSWORD" || purpose === "NEW_DEVICE") {
+    if (
+      purpose === "REWARD_REDEMPTION" ||
+      purpose === "RESET_PASSWORD" ||
+      purpose === "NEW_DEVICE"
+    ) {
       toast.success("Action verified!");
       router.back();
       return;
@@ -106,13 +111,13 @@ function VerifyOtpContent() {
 
   const handleResend = async () => {
     const ok = await resend();
-    if (ok) toast.success("New OTP sent!");
+    if (ok) toast.success("New verification code sent!");
   };
 
   const title =
     purpose === "REGISTRATION"
-      ? "Verify Your Phone"
-      : purpose === "PHONE_VERIFICATION"
+      ? "Verify Your Email"
+      : purpose === "EMAIL_VERIFICATION"
         ? "Complete Verification"
         : "Security Verification";
 
@@ -140,9 +145,9 @@ function VerifyOtpContent() {
             </div>
             <CardTitle className="text-2xl text-white">{title}</CardTitle>
             <CardDescription className="text-slate-400">
-              {maskedPhone
-                ? `Enter the 6-digit code sent to ${maskedPhone}`
-                : "Enter the 6-digit code sent to your phone"}
+              {maskedEmail
+                ? `Enter the ${OTP_CONFIG.LENGTH}-digit code sent to ${maskedEmail}`
+                : `Enter the ${OTP_CONFIG.LENGTH}-digit code sent to your email`}
             </CardDescription>
           </CardHeader>
 
@@ -172,6 +177,7 @@ function VerifyOtpContent() {
                     <OtpInput
                       value={otp}
                       onChange={setOtp}
+                      length={OTP_CONFIG.LENGTH}
                       disabled={loading || isExpired}
                       error={!!error}
                     />
@@ -202,7 +208,7 @@ function VerifyOtpContent() {
 
                   <Button
                     className="w-full bg-[#7ED957] text-[#0F172A] hover:bg-[#6bc84a] font-semibold"
-                    disabled={loading || otp.length !== 6 || isExpired}
+                    disabled={loading || otp.length !== OTP_CONFIG.LENGTH || isExpired}
                     onClick={handleVerify}
                   >
                     {loading ? (
@@ -234,7 +240,7 @@ function VerifyOtpContent() {
                     ) : (
                       <>
                         <RefreshCw size={16} />
-                        Resend OTP
+                        Resend Code
                       </>
                     )}
                   </Button>

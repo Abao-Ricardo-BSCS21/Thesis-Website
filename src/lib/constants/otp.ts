@@ -1,6 +1,6 @@
-/** OTP & SMS configuration constants */
+/** OTP configuration constants */
 export const OTP_CONFIG = {
-  LENGTH: 6,
+  LENGTH: 4,
   EXPIRY_MINUTES: 5,
   MAX_ATTEMPTS: 5,
   RESEND_COOLDOWN_SECONDS: 60,
@@ -11,8 +11,7 @@ export const OTP_CONFIG = {
 
 export type OtpPurposeType =
   | "REGISTRATION"
-  | "PHONE_VERIFICATION"
+  | "EMAIL_VERIFICATION"
   | "REWARD_REDEMPTION"
-  | "CHANGE_PHONE"
   | "RESET_PASSWORD"
   | "NEW_DEVICE";

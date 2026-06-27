@@ -127,19 +127,16 @@ export async function PUT(request: NextRequest) {
       return r;
     });
 
-    const webhookPayload = {
+    webhookDispatcher.dispatchAsync("EMAIL", "REWARD_REDEMPTION", {
       studentId: student.studentId,
       studentName: `${student.firstName} ${student.lastName}`,
-      phoneNumber: student.phoneNumber,
       email: student.user.email,
       rewardName: reward.name,
       pointsUsed: reward.pointsCost,
       redemptionId: redemption.id,
       message: `You redeemed "${reward.name}" for ${reward.pointsCost} points.`,
       subject: "FilCycle Reward Redeemed",
-    };
-    webhookDispatcher.dispatchAsync("SMS", "REWARD_REDEMPTION", webhookPayload);
-    webhookDispatcher.dispatchAsync("EMAIL", "REWARD_REDEMPTION", webhookPayload);
+    });
 
     return apiResponse(redemption);
   }

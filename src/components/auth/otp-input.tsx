@@ -2,6 +2,7 @@
 
 import { useRef, useCallback, KeyboardEvent, ClipboardEvent, ChangeEvent } from "react";
 import { cn } from "@/lib/utils";
+import { OTP_CONFIG } from "@/lib/constants/otp";
 
 interface OtpInputProps {
   length?: number;
@@ -12,7 +13,7 @@ interface OtpInputProps {
 }
 
 export function OtpInput({
-  length = 6,
+  length = OTP_CONFIG.LENGTH,
   value,
   onChange,
   disabled = false,
