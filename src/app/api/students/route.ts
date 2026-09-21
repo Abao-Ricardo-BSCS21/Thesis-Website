@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { studentCreateSchema } from "@/lib/validations";
 import { studentRepository } from "@/repositories/auth.repository";
 import bcrypt from "bcryptjs";
+import { generateBarcodeId } from "@/lib/utils/barcode";
 
 export async function GET(request: NextRequest) {
   const limited = rateLimit(request);
@@ -86,6 +87,7 @@ export async function POST(request: NextRequest) {
     email: parsed.data.email,
     passwordHash: hashedPassword,
     roleId: studentRole.id,
+    barcodeId: generateBarcodeId(),
   });
 
   const student = await prisma.student.findUnique({

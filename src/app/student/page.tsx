@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Award, Recycle, Trophy, TrendingUp } from "lucide-react";
+import { Award, Recycle, Trophy, TrendingUp, ScanBarcode } from "lucide-react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,30 +22,81 @@ interface StudentProfile {
   rewardPoints: number;
   bottlesRecycled: number;
   rank: number | null;
-  achievements: { achievement: { id: string; name: string; icon: string; description: string } }[];
-  redemptions: { id: string; pointsUsed: number; status: string; createdAt: string; reward: { name: string } }[];
-  transactions: { id: string; bottleCount: number; pointsEarned: number; createdAt: string; type: string }[];
+  achievements: {
+    achievement: {
+      id: string;
+      name: string;
+      icon: string;
+      description: string;
+      scope?: "LIFETIME" | "MONTHLY";
+    };
+    periodKey?: string;
+  }[];
+  redemptions: {
+    id: string;
+    pointsUsed: number;
+    status: string;
+    createdAt: string;
+    reward: { name: string };
+  }[];
+  transactions: {
+    id: string;
+    bottleCount: number;
+    pointsEarned: number;
+    createdAt: string;
+    type: string;
+  }[];
 }
 
-const ALL_ACHIEVEMENTS = [
-  { name: "First Bottle", icon: "🌱", description: "Recycle your first bottle" },
-  { name: "100 Bottles", icon: "♻️", description: "Recycle 100 bottles" },
-  { name: "500 Bottles", icon: "🏆", description: "Recycle 500 bottles" },
-  { name: "1000 Bottles", icon: "👑", description: "Recycle 1000 bottles" },
-  { name: "Eco Warrior", icon: "⚔️", description: "Earn 500 points" },
-  { name: "Plastic Hero", icon: "🦸", description: "Earn 2000 points" },
-  { name: "Planet Saver", icon: "🌍", description: "Earn 5000 points" },
-];
+interface AchievementPreview {
+  name: string;
+  icon: string;
+  description: string;
+  scope: "LIFETIME" | "MONTHLY";
+  unlocked: boolean;
+}
 
 export default function StudentDashboard() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [achievementPreview, setAchievementPreview] = useState<
+    AchievementPreview[]
+  >([]);
+  const [achievementStats, setAchievementStats] = useState({
+    unlocked: 0,
+    total: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/students")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.success) setProfile(d.data);
+    Promise.all([
+      fetch("/api/students").then((r) => r.json()),
+      fetch("/api/achievements").then((r) => r.json()),
+    ])
+      .then(([profileRes, achievementsRes]) => {
+        if (profileRes.success) setProfile(profileRes.data);
+        if (achievementsRes.success) {
+          setAchievementPreview(
+            achievementsRes.data.achievements.map(
+              (a: {
+                name: string;
+                icon: string;
+                description: string;
+                scope: "LIFETIME" | "MONTHLY";
+                unlocked: boolean;
+              }) => ({
+                name: a.name,
+                icon: a.icon,
+                description: a.description,
+                scope: a.scope,
+                unlocked: a.unlocked,
+              })
+            )
+          );
+          setAchievementStats({
+            unlocked: achievementsRes.data.unlockedCount,
+            total: achievementsRes.data.totalCount,
+          });
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -72,8 +123,6 @@ export default function StudentDashboard() {
     );
   }
 
-  const unlockedNames = new Set(profile.achievements.map((a) => a.achievement.name));
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -93,12 +142,20 @@ export default function StudentDashboard() {
             </p>
           </div>
         </div>
-        <Link href="/student/recycle">
-          <Button className="gap-2">
-            <Recycle size={18} />
-            Recycle Now
-          </Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/student/barcode">
+            <Button variant="outline" className="gap-2">
+              <ScanBarcode size={18} />
+              My Barcode
+            </Button>
+          </Link>
+          <Link href="/student/recycle">
+            <Button className="gap-2">
+              <Recycle size={18} />
+              Recycle Now
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -112,9 +169,9 @@ export default function StudentDashboard() {
         />
         <StatCard
           title="Achievements"
-          value={profile.achievements.length}
+          value={achievementStats.unlocked}
           icon={TrendingUp}
-          suffix={`/${ALL_ACHIEVEMENTS.length}`}
+          suffix={`/${achievementStats.total || "—"}`}
         />
       </div>
 
@@ -191,18 +248,22 @@ export default function StudentDashboard() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Achievements</CardTitle>
+          <Link href="/student/achievements">
+            <Button variant="ghost" size="sm">View all</Button>
+          </Link>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-            {ALL_ACHIEVEMENTS.map((a) => (
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {achievementPreview.map((a) => (
               <AchievementBadge
                 key={a.name}
                 name={a.name}
                 icon={a.icon}
                 description={a.description}
-                unlocked={unlockedNames.has(a.name)}
+                unlocked={a.unlocked}
+                scope={a.scope}
               />
             ))}
           </div>

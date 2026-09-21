@@ -5,29 +5,37 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AchievementBadge } from "@/components/dashboard/leaderboard-podium";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const ALL_ACHIEVEMENTS = [
-  { name: "First Bottle", icon: "🌱", description: "Recycle your first bottle", requirement: 1 },
-  { name: "100 Bottles", icon: "♻️", description: "Recycle 100 bottles", requirement: 100 },
-  { name: "500 Bottles", icon: "🏆", description: "Recycle 500 bottles", requirement: 500 },
-  { name: "1000 Bottles", icon: "👑", description: "Recycle 1000 bottles", requirement: 1000 },
-  { name: "Eco Warrior", icon: "⚔️", description: "Earn 500 points", requirement: 500 },
-  { name: "Plastic Hero", icon: "🦸", description: "Earn 2000 points", requirement: 2000 },
-  { name: "Planet Saver", icon: "🌍", description: "Earn 5000 points", requirement: 5000 },
-];
+interface AchievementItem {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  requirement: number;
+  requirementType: string;
+  scope: "LIFETIME" | "MONTHLY";
+  unlocked: boolean;
+  current: number;
+  progress: number;
+}
+
+interface AchievementsPayload {
+  periodLabel: string;
+  unlockedCount: number;
+  totalCount: number;
+  monthly: { bottles: number; points: number };
+  lifetime: { bottles: number; points: number };
+  achievements: AchievementItem[];
+}
 
 export default function AchievementsPage() {
-  const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
-  const [stats, setStats] = useState({ bottles: 0, points: 0 });
+  const [data, setData] = useState<AchievementsPayload | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/students")
+    fetch("/api/achievements")
       .then((r) => r.json())
       .then((d) => {
-        if (d.success) {
-          setUnlocked(new Set(d.data.achievements.map((a: { achievement: { name: string } }) => a.achievement.name)));
-          setStats({ bottles: d.data.bottlesRecycled, points: d.data.rewardPoints });
-        }
+        if (d.success) setData(d.data);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -35,55 +43,119 @@ export default function AchievementsPage() {
 
   if (loading) return <Skeleton className="h-64" />;
 
+  if (!data) {
+    return (
+      <div className="flex h-64 items-center justify-center text-muted-foreground">
+        Failed to load achievements
+      </div>
+    );
+  }
+
+  const monthly = data.achievements.filter((a) => a.scope === "MONTHLY");
+  const lifetime = data.achievements.filter((a) => a.scope === "LIFETIME");
+  const locked = data.achievements.filter((a) => !a.unlocked);
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Achievements</h1>
         <p className="text-muted-foreground">
-          {unlocked.size}/{ALL_ACHIEVEMENTS.length} unlocked
+          {data.unlockedCount}/{data.totalCount} active · Monthly challenges
+          reset each calendar month · Big milestones stay forever
         </p>
       </div>
 
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-        {ALL_ACHIEVEMENTS.map((a) => (
-          <AchievementBadge
-            key={a.name}
-            name={a.name}
-            icon={a.icon}
-            description={a.description}
-            unlocked={unlocked.has(a.name)}
-          />
-        ))}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">
+              This month · {data.periodLabel}
+            </p>
+            <p className="mt-1 text-lg font-semibold">
+              {data.monthly.bottles} bottles · {data.monthly.points} pts
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">
+              Lifetime totals
+            </p>
+            <p className="mt-1 text-lg font-semibold">
+              {data.lifetime.bottles} bottles · {data.lifetime.points} pts
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Monthly challenges</h2>
+        <p className="text-sm text-muted-foreground">
+          Progress uses this month&apos;s recycling only. Unlocks clear when the
+          next month starts.
+        </p>
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+          {monthly.map((a) => (
+            <AchievementBadge
+              key={a.id}
+              name={a.name}
+              icon={a.icon}
+              description={a.description}
+              unlocked={a.unlocked}
+              scope="MONTHLY"
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Lifetime milestones</h2>
+        <p className="text-sm text-muted-foreground">
+          These never reset once unlocked.
+        </p>
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {lifetime.map((a) => (
+            <AchievementBadge
+              key={a.id}
+              name={a.name}
+              icon={a.icon}
+              description={a.description}
+              unlocked={a.unlocked}
+              scope="LIFETIME"
+            />
+          ))}
+        </div>
+      </section>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Progress</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {ALL_ACHIEVEMENTS.filter((a) => !unlocked.has(a.name)).map((a) => {
-            const current = a.name.includes("Bottle") ? stats.bottles : stats.points;
-            const progress = Math.min((current / a.requirement) * 100, 100);
-            return (
-              <div key={a.name}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>{a.name}</span>
-                  <span className="text-muted-foreground">
-                    {current}/{a.requirement}
+          {locked.map((a) => (
+            <div key={a.id}>
+              <div className="mb-1 flex justify-between text-sm">
+                <span>
+                  {a.name}{" "}
+                  <span className="text-xs text-muted-foreground">
+                    ({a.scope === "MONTHLY" ? "monthly" : "lifetime"})
                   </span>
-                </div>
-                <div className="h-2 rounded-full bg-muted/30">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
+                </span>
+                <span className="text-muted-foreground">
+                  {a.current}/{a.requirement}
+                </span>
               </div>
-            );
-          })}
-          {unlocked.size === ALL_ACHIEVEMENTS.length && (
-            <p className="text-center text-primary font-medium py-4">
-              🎉 All achievements unlocked! You&apos;re a recycling champion!
+              <div className="h-2 rounded-full bg-muted/30">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${a.progress}%` }}
+                />
+              </div>
+            </div>
+          ))}
+          {locked.length === 0 && (
+            <p className="py-4 text-center font-medium text-primary">
+              All active achievements unlocked for this period!
             </p>
           )}
         </CardContent>

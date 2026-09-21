@@ -23,6 +23,7 @@ import {
   UserCheck,
   Loader2,
   Webhook,
+  ScanBarcode,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Logo } from "@/components/brand/logo";
@@ -44,6 +45,7 @@ const adminNav: NavItem[] = [
   { label: "Leaderboard", href: "/admin/leaderboard", icon: Trophy },
   { label: "Reports", href: "/admin/reports", icon: FileText },
   { label: "Machine", href: "/admin/machine", icon: Monitor },
+  { label: "Barcode Test", href: "/admin/barcode-test", icon: ScanBarcode },
   { label: "Webhooks", href: "/admin/webhooks", icon: Webhook },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
@@ -54,12 +56,15 @@ const staffNav: NavItem[] = [
   { label: "Transactions", href: "/staff/transactions", icon: ClipboardList },
   { label: "Students", href: "/staff/students", icon: UserCheck },
   { label: "Machine Logs", href: "/staff/machine", icon: Monitor },
+  { label: "Barcode Test", href: "/staff/barcode-test", icon: ScanBarcode },
   { label: "Reports", href: "/staff/reports", icon: FileText },
 ];
 
 const studentNav: NavItem[] = [
   { label: "Dashboard", href: "/student", icon: LayoutDashboard },
   { label: "Recycle", href: "/student/recycle", icon: Recycle },
+  { label: "My Barcode", href: "/student/barcode", icon: ScanBarcode },
+  { label: "Barcode Test", href: "/student/barcode-test", icon: ScanBarcode },
   { label: "Rewards", href: "/student/rewards", icon: Gift },
   { label: "Leaderboard", href: "/student/leaderboard", icon: Trophy },
   { label: "Achievements", href: "/student/achievements", icon: Trophy },

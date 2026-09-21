@@ -1,7 +1,7 @@
 /**
  * Hardware abstraction layer for future IoT integration.
  * Replace Simulated* implementations with real device drivers
- * (Arduino Mega, ESP32, NFC readers, load cells, IR/ultrasonic sensors).
+ * (Arduino Mega, ESP32, NFC readers, USB barcode scanners, load cells, IR/ultrasonic sensors).
  */
 
 export interface SensorReading {
@@ -32,6 +32,12 @@ export interface NFCReaderResult {
   error?: string;
 }
 
+export interface BarcodeReaderResult {
+  success: boolean;
+  barcodeId: string | null;
+  error?: string;
+}
+
 export interface MachineHardwareStatus {
   motorRunning: boolean;
   motorStatus: "OK" | "STALLED" | "ERROR";
@@ -53,6 +59,16 @@ export interface IBottleValidator {
 
 export interface INFCReader {
   readCard(): Promise<NFCReaderResult>;
+  isConnected(): Promise<boolean>;
+}
+
+/**
+ * USB HID barcode scanners usually act as a keyboard (wedge).
+ * The web UI captures keystrokes; this interface is for future
+ * serial/SDK-based readers on the machine controller.
+ */
+export interface IBarcodeReader {
+  readCode(): Promise<BarcodeReaderResult>;
   isConnected(): Promise<boolean>;
 }
 
@@ -128,6 +144,23 @@ export class SimulatedNFCReader implements INFCReader {
   }
 }
 
+export class SimulatedBarcodeReader implements IBarcodeReader {
+  async readCode(): Promise<BarcodeReaderResult> {
+    await new Promise((r) => setTimeout(r, 200));
+    return {
+      success: false,
+      barcodeId: null,
+      error:
+        "No serial barcode SDK connected — use USB HID scanner or type into the Recycle page",
+    };
+  }
+
+  async isConnected(): Promise<boolean> {
+    // HID wedge scanners appear as keyboards; connection is handled in the browser UI.
+    return false;
+  }
+}
+
 export class SimulatedMachineController implements IMachineController {
   private motorRunning = false;
   private storageLevel = 127;
@@ -177,5 +210,6 @@ export class SimulatedMachineController implements IMachineController {
 export const hardware = {
   bottleValidator: new SimulatedBottleValidator(),
   nfcReader: new SimulatedNFCReader(),
+  barcodeReader: new SimulatedBarcodeReader(),
   machineController: new SimulatedMachineController(),
 };

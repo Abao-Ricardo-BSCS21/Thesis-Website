@@ -6,6 +6,7 @@ import { studentRepository } from "@/repositories/auth.repository";
 import { otpService, OtpServiceError } from "@/services/otp/otp.service";
 import { webhookDispatcher } from "@/services/webhook/webhook-dispatcher.service";
 import type { StudentRegistrationInput } from "@/validators/auth.validators";
+import { generateBarcodeId } from "@/lib/utils/barcode";
 
 export class StudentAuthError extends Error {
   constructor(
@@ -54,6 +55,7 @@ export class StudentAuthService {
       email,
       passwordHash,
       roleId: studentRole.id,
+      barcodeId: generateBarcodeId(),
     });
 
     const otpResult = await otpService.createAndSendOtp(

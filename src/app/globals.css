@@ -135,3 +135,24 @@ body {
 .shake {
   animation: shake 0.4s ease-in-out;
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  aside,
+  nav,
+  header {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  #filcycle-barcode-sticker {
+    border-style: solid !important;
+    box-shadow: none !important;
+  }
+}

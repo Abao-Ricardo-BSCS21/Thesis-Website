@@ -1,12 +1,15 @@
 import { NextRequest } from "next/server";
-import { RoleName } from "@prisma/client";
+import { RoleName, LogLevel } from "@prisma/client";
 import { apiError, apiResponse, parseBody, rateLimit } from "@/lib/api-utils";
 import { requireAuth } from "@/lib/permissions";
 import { hardware } from "@/lib/hardware";
-import { processBottleSubmission, logMachineEvent } from "@/lib/services/recycling-service";
+import {
+  processBottleSubmission,
+  logMachineEvent,
+} from "@/lib/services/recycling-service";
 import prisma from "@/lib/prisma";
 import { bottleSubmissionSchema } from "@/lib/validations";
-import { LogLevel } from "@prisma/client";
+import { normalizeBarcodeInput } from "@/lib/utils/barcode";
 
 export async function POST(request: NextRequest) {
   const limited = rateLimit(request);
@@ -16,7 +19,7 @@ export async function POST(request: NextRequest) {
   if (error) return error;
 
   const body = await parseBody(request);
-  const parsed = bottleSubmissionSchema.safeParse(body);
+  const parsed = bottleSubmissionSchema.safeParse(body ?? {});
   if (!parsed.success) return apiError(parsed.error.issues[0].message);
 
   const student = await prisma.student.findFirst({
@@ -24,6 +27,21 @@ export async function POST(request: NextRequest) {
   });
 
   if (!student) return apiError("Student profile not found", 404);
+
+  const barcodeId = parsed.data.barcodeId
+    ? normalizeBarcodeInput(parsed.data.barcodeId)
+    : null;
+
+  if (!barcodeId) {
+    return apiError("Scan your barcode sticker before recycling", 400);
+  }
+
+  if (!student.barcodeId || student.barcodeId !== barcodeId) {
+    return apiError(
+      "Barcode does not match your account. Print a new sticker from My Barcode.",
+      403
+    );
+  }
 
   const machine = await prisma.machine.findFirst({ where: { status: "ONLINE" } });
 
@@ -58,9 +76,13 @@ export async function POST(request: NextRequest) {
 
   await logMachineEvent(
     machine.id,
-    `Bottle accepted from ${student.firstName} ${student.lastName} (${student.studentId})`,
+    `Bottle accepted from ${student.firstName} ${student.lastName} (${student.studentId}) via barcode`,
     LogLevel.INFO,
-    { validation: JSON.parse(JSON.stringify(validation)), transactionId: result.transaction.id }
+    {
+      validation: JSON.parse(JSON.stringify(validation)),
+      transactionId: result.transaction.id,
+      barcodeId,
+    }
   );
 
   const updatedStudent = await prisma.student.findUnique({
@@ -100,5 +122,6 @@ export async function GET(request: NextRequest) {
   return apiResponse({
     hardware: hwStatus,
     nfcConnected: await hardware.nfcReader.isConnected(),
+    barcodeScannerConnected: await hardware.barcodeReader.isConnected(),
   });
 }

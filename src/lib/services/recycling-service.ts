@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import {
+  AchievementScope,
   LogLevel,
   NotificationType,
   Prisma,
@@ -7,6 +8,12 @@ import {
   TransactionType,
 } from "@prisma/client";
 import { BOTTLE_WEIGHT_KG, POINTS_PER_BOTTLE } from "@/lib/utils";
+import {
+  formatPeriodLabel,
+  getCurrentPeriodKey,
+  getMonthStart,
+  periodKeyForScope,
+} from "@/lib/utils/achievement-period";
 
 export async function processBottleSubmission(
   studentDbId: string,
@@ -68,6 +75,25 @@ export async function processBottleSubmission(
   return result;
 }
 
+/** Bottles / points earned from bottle submissions in the current calendar month. */
+export async function getMonthlyRecyclingStats(studentDbId: string) {
+  const monthStart = getMonthStart();
+  const agg = await prisma.transaction.aggregate({
+    where: {
+      studentId: studentDbId,
+      type: TransactionType.BOTTLE_SUBMISSION,
+      createdAt: { gte: monthStart },
+    },
+    _sum: { bottleCount: true, pointsEarned: true },
+  });
+
+  return {
+    bottles: agg._sum.bottleCount ?? 0,
+    points: agg._sum.pointsEarned ?? 0,
+    periodKey: getCurrentPeriodKey(),
+  };
+}
+
 export async function checkAndUnlockAchievements(studentDbId: string) {
   const student = await prisma.student.findUnique({
     where: { id: studentDbId },
@@ -79,24 +105,42 @@ export async function checkAndUnlockAchievements(studentDbId: string) {
   if (!student) return [];
 
   const allAchievements = await prisma.achievement.findMany();
-  const unlockedIds = new Set(student.achievements.map((a) => a.achievementId));
+  const monthlyStats = await getMonthlyRecyclingStats(studentDbId);
+  const currentMonthKey = monthlyStats.periodKey;
+
+  const unlockedKeys = new Set(
+    student.achievements.map((a) => `${a.achievementId}:${a.periodKey}`)
+  );
   const newlyUnlocked = [];
 
   for (const achievement of allAchievements) {
-    if (unlockedIds.has(achievement.id)) continue;
+    const periodKey = periodKeyForScope(achievement.scope);
+    if (unlockedKeys.has(`${achievement.id}:${periodKey}`)) continue;
 
     let qualifies = false;
+    const bottles =
+      achievement.scope === AchievementScope.MONTHLY
+        ? monthlyStats.bottles
+        : student.bottlesRecycled;
+    const points =
+      achievement.scope === AchievementScope.MONTHLY
+        ? monthlyStats.points
+        : student.rewardPoints;
 
     if (achievement.requirementType === RequirementType.BOTTLE_COUNT) {
-      qualifies = student.bottlesRecycled >= achievement.requirement;
+      qualifies = bottles >= achievement.requirement;
     } else if (achievement.requirementType === RequirementType.POINTS_EARNED) {
-      qualifies = student.rewardPoints >= achievement.requirement;
+      qualifies = points >= achievement.requirement;
     }
 
     if (qualifies) {
       await prisma.$transaction(async (tx) => {
         await tx.studentAchievement.create({
-          data: { studentId: studentDbId, achievementId: achievement.id },
+          data: {
+            studentId: studentDbId,
+            achievementId: achievement.id,
+            periodKey,
+          },
         });
 
         if (achievement.pointsBonus > 0) {
@@ -106,13 +150,22 @@ export async function checkAndUnlockAchievements(studentDbId: string) {
           });
         }
 
+        const scopeLabel =
+          achievement.scope === AchievementScope.MONTHLY
+            ? ` (${formatPeriodLabel(currentMonthKey)})`
+            : "";
+
         await tx.notification.create({
           data: {
             userId: student.userId,
             title: "Achievement Unlocked!",
-            message: `You unlocked "${achievement.name}" — ${achievement.description}`,
+            message: `You unlocked "${achievement.name}"${scopeLabel} — ${achievement.description}`,
             type: NotificationType.ACHIEVEMENT_UNLOCKED,
-            metadata: { achievementId: achievement.id },
+            metadata: {
+              achievementId: achievement.id,
+              periodKey,
+              scope: achievement.scope,
+            },
           },
         });
       });

@@ -61,6 +61,11 @@ enum RequirementType {
   STREAK_DAYS
 }
 
+enum AchievementScope {
+  LIFETIME
+  MONTHLY
+}
+
 enum NotificationType {
   BOTTLE_ACCEPTED
   REWARD_ADDED
@@ -128,6 +133,7 @@ model Student {
   bottlesRecycled Int                  @default(0)
   rank            Int?
   nfcCardId       String?              @unique
+  barcodeId       String?              @unique
   emailVerified   Boolean              @default(false)
   transactions    Transaction[]
   redemptions     RewardRedemption[]
@@ -252,6 +258,7 @@ model Achievement {
   icon                String
   requirement         Int
   requirementType     RequirementType
+  scope               AchievementScope     @default(LIFETIME)
   pointsBonus         Int                  @default(0)
   studentAchievements StudentAchievement[]
   createdAt           DateTime             @default(now())
@@ -263,9 +270,12 @@ model StudentAchievement {
   student       Student     @relation(fields: [studentId], references: [id])
   achievementId String
   achievement   Achievement @relation(fields: [achievementId], references: [id])
+  /// "lifetime" for permanent unlocks, or "YYYY-MM" for monthly challenges
+  periodKey     String      @default("lifetime")
   unlockedAt    DateTime    @default(now())
 
-  @@unique([studentId, achievementId])
+  @@unique([studentId, achievementId, periodKey])
+  @@index([studentId, periodKey])
 }
 
 model Notification {

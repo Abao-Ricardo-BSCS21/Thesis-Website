@@ -3,11 +3,13 @@ import {
   RoleName,
   RewardCategory,
   RequirementType,
+  AchievementScope,
   MachineStatus,
   TransactionType,
   LogLevel,
 } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { generateBarcodeId } from "../src/lib/utils/barcode";
 
 const prisma = new PrismaClient();
 
@@ -82,6 +84,7 @@ async function main() {
           emailVerified: true,
           rewardPoints: s.points,
           bottlesRecycled: s.bottles,
+          barcodeId: generateBarcodeId(),
           user: {
             create: {
               email: s.email,
@@ -103,6 +106,7 @@ async function main() {
           emailVerified: true,
           rewardPoints: s.points,
           bottlesRecycled: s.bottles,
+          ...(existing.barcodeId ? {} : { barcodeId: generateBarcodeId() }),
         },
       });
       const linked = await prisma.student.findUnique({
@@ -118,24 +122,113 @@ async function main() {
     }
   }
 
-  // Achievements
+  // Achievements — big milestones are lifetime; smaller goals reset each calendar month
   const achievements = [
-    { name: "First Bottle", description: "Recycle your first bottle", icon: "🌱", requirement: 1, requirementType: RequirementType.BOTTLE_COUNT, pointsBonus: 5 },
-    { name: "100 Bottles", description: "Recycle 100 bottles", icon: "♻️", requirement: 100, requirementType: RequirementType.BOTTLE_COUNT, pointsBonus: 50 },
-    { name: "500 Bottles", description: "Recycle 500 bottles", icon: "🏆", requirement: 500, requirementType: RequirementType.BOTTLE_COUNT, pointsBonus: 200 },
-    { name: "1000 Bottles", description: "Recycle 1000 bottles", icon: "👑", requirement: 1000, requirementType: RequirementType.BOTTLE_COUNT, pointsBonus: 500 },
-    { name: "Eco Warrior", description: "Earn 500 reward points", icon: "⚔️", requirement: 500, requirementType: RequirementType.POINTS_EARNED, pointsBonus: 25 },
-    { name: "Plastic Hero", description: "Earn 2000 reward points", icon: "🦸", requirement: 2000, requirementType: RequirementType.POINTS_EARNED, pointsBonus: 100 },
-    { name: "Planet Saver", description: "Earn 5000 reward points", icon: "🌍", requirement: 5000, requirementType: RequirementType.POINTS_EARNED, pointsBonus: 250 },
+    {
+      name: "First Bottle",
+      description: "Recycle your first bottle this month",
+      icon: "🌱",
+      requirement: 1,
+      requirementType: RequirementType.BOTTLE_COUNT,
+      scope: AchievementScope.MONTHLY,
+      pointsBonus: 5,
+    },
+    {
+      name: "Monthly Recycler",
+      description: "Recycle 10 bottles this month",
+      icon: "♻️",
+      requirement: 10,
+      requirementType: RequirementType.BOTTLE_COUNT,
+      scope: AchievementScope.MONTHLY,
+      pointsBonus: 15,
+    },
+    {
+      name: "Eco Streak",
+      description: "Earn 100 points from recycling this month",
+      icon: "⚔️",
+      requirement: 100,
+      requirementType: RequirementType.POINTS_EARNED,
+      scope: AchievementScope.MONTHLY,
+      pointsBonus: 20,
+    },
+    {
+      name: "Green Month",
+      description: "Earn 300 points from recycling this month",
+      icon: "🌿",
+      requirement: 300,
+      requirementType: RequirementType.POINTS_EARNED,
+      scope: AchievementScope.MONTHLY,
+      pointsBonus: 40,
+    },
+    {
+      name: "100 Bottles",
+      description: "Recycle 100 bottles (lifetime)",
+      icon: "♻️",
+      requirement: 100,
+      requirementType: RequirementType.BOTTLE_COUNT,
+      scope: AchievementScope.LIFETIME,
+      pointsBonus: 50,
+    },
+    {
+      name: "500 Bottles",
+      description: "Recycle 500 bottles (lifetime)",
+      icon: "🏆",
+      requirement: 500,
+      requirementType: RequirementType.BOTTLE_COUNT,
+      scope: AchievementScope.LIFETIME,
+      pointsBonus: 200,
+    },
+    {
+      name: "1000 Bottles",
+      description: "Recycle 1000 bottles (lifetime)",
+      icon: "👑",
+      requirement: 1000,
+      requirementType: RequirementType.BOTTLE_COUNT,
+      scope: AchievementScope.LIFETIME,
+      pointsBonus: 500,
+    },
+    {
+      name: "Plastic Hero",
+      description: "Earn 2000 reward points (lifetime)",
+      icon: "🦸",
+      requirement: 2000,
+      requirementType: RequirementType.POINTS_EARNED,
+      scope: AchievementScope.LIFETIME,
+      pointsBonus: 100,
+    },
+    {
+      name: "Planet Saver",
+      description: "Earn 5000 reward points (lifetime)",
+      icon: "🌍",
+      requirement: 5000,
+      requirementType: RequirementType.POINTS_EARNED,
+      scope: AchievementScope.LIFETIME,
+      pointsBonus: 250,
+    },
   ];
 
   for (const a of achievements) {
     await prisma.achievement.upsert({
       where: { name: a.name },
-      update: {},
+      update: {
+        description: a.description,
+        icon: a.icon,
+        requirement: a.requirement,
+        requirementType: a.requirementType,
+        scope: a.scope,
+        pointsBonus: a.pointsBonus,
+      },
       create: a,
     });
   }
+
+  // Remove legacy achievements that were replaced by monthly challenges
+  await prisma.studentAchievement.deleteMany({
+    where: { achievement: { name: { in: ["Eco Warrior"] } } },
+  });
+  await prisma.achievement.deleteMany({
+    where: { name: { in: ["Eco Warrior"] } },
+  });
 
   // Rewards
   const rewards = [

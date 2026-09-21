@@ -123,6 +123,7 @@ export class StudentRepository {
     email: string;
     passwordHash: string;
     roleId: string;
+    barcodeId?: string;
   }) {
     return prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -139,6 +140,7 @@ export class StudentRepository {
               course: data.course,
               year: data.year,
               emailVerified: false,
+              barcodeId: data.barcodeId,
             },
           },
         },

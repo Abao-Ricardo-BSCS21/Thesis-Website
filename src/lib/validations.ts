@@ -8,8 +8,17 @@ export const loginSchema = z.object({
 
 export const bottleSubmissionSchema = z.object({
   studentId: z.string().optional(),
+  barcodeId: z.string().optional(),
   weightGrams: z.number().min(1).max(500).optional(),
   material: z.string().default("PET"),
+});
+
+export const barcodeLookupSchema = z.object({
+  code: z.string().min(1, "Barcode is required"),
+});
+
+export const barcodeRegenerateSchema = z.object({
+  confirm: z.literal(true),
 });
 
 export const rewardRedemptionSchema = z.object({

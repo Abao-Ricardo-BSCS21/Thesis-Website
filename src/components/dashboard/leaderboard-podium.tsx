@@ -139,11 +139,13 @@ export function AchievementBadge({
   icon,
   description,
   unlocked,
+  scope,
 }: {
   name: string;
   icon: string;
   description: string;
   unlocked: boolean;
+  scope?: "LIFETIME" | "MONTHLY";
 }) {
   return (
     <motion.div
@@ -154,6 +156,17 @@ export function AchievementBadge({
           : "bg-muted/20 border border-border/30 opacity-50 grayscale"
       }`}
     >
+      {scope && (
+        <span
+          className={`mb-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+            scope === "MONTHLY"
+              ? "bg-sky-500/15 text-sky-600 dark:text-sky-400"
+              : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+          }`}
+        >
+          {scope === "MONTHLY" ? "Monthly" : "Lifetime"}
+        </span>
+      )}
       <div className="mb-2 text-3xl">{icon}</div>
       <p className="text-sm font-semibold">{name}</p>
       <p className="mt-1 text-xs text-muted-foreground">{description}</p>
